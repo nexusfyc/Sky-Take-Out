@@ -21,6 +21,7 @@ import java.util.Map;
 
 /**
  * 员工管理
+ * 一般来说，Result查询请求需要定义返回值泛型，而类似post更改数据则一般不需要
  */
 @RestController
 @RequestMapping("/admin/employee")
@@ -84,6 +85,13 @@ public class EmployeeController {
     public Result<PageResult> pageQuery(EmployeePageQueryDTO employeePageQueryDTO) {
         PageResult pageResult = employeeService.page(employeePageQueryDTO);
         return Result.success(pageResult);
+    }
+
+    @PostMapping("/status/{status}")
+    @ApiOperation("更改员工状态")
+    public Result<String> changeStatus(@PathVariable Integer status, Long id) {
+        employeeService.changeStatus(status, id);
+        return Result.success();
     }
 
 }

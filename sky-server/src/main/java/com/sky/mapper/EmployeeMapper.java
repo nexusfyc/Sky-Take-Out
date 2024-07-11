@@ -6,6 +6,7 @@ import com.sky.entity.Employee;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.awt.*;
 import java.util.List;
@@ -36,4 +37,10 @@ public interface EmployeeMapper {
      * @return
      */
     Page<Employee> list(EmployeePageQueryDTO employeePageQueryDTO);
+
+    /**
+     * 更改员工状态
+     * @param employee
+     */
+    void changeStatus(Employee employee);
 }
