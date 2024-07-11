@@ -73,6 +73,11 @@ public class EmployeeController {
         return Result.success();
     }
 
+    /**
+     * 新增员工
+     * @param employeeDTO
+     * @return
+     */
     @PostMapping
     @ApiOperation("新增员工")
     public Result<String> insert(@RequestBody EmployeeDTO employeeDTO) {
@@ -80,6 +85,11 @@ public class EmployeeController {
         return Result.success();
     }
 
+    /**
+     * 分页查询员工
+     * @param employeePageQueryDTO
+     * @return
+     */
     @GetMapping("/page")
     @ApiOperation("分页查询员工")
     public Result<PageResult> pageQuery(EmployeePageQueryDTO employeePageQueryDTO) {
@@ -87,10 +97,30 @@ public class EmployeeController {
         return Result.success(pageResult);
     }
 
+    /**
+     * 更改员工状态
+     * @param status
+     * @param id
+     * @return
+     */
     @PostMapping("/status/{status}")
     @ApiOperation("更改员工状态")
     public Result<String> changeStatus(@PathVariable Integer status, Long id) {
         employeeService.changeStatus(status, id);
+        return Result.success();
+    }
+
+    @GetMapping("/{id}")
+    @ApiOperation("修改员工信息（回显）")
+    public Result<Employee> getEmpInfo(@PathVariable Long id) {
+        Employee employee = employeeService.getEmpInfo(id);
+        return Result.success(employee);
+    }
+
+    @PutMapping
+    @ApiOperation("修改员工信息（修改）")
+    public Result editEmployee(@RequestBody EmployeeDTO employeeDTO) {
+        employeeService.editEmployee(employeeDTO);
         return Result.success();
     }
 
