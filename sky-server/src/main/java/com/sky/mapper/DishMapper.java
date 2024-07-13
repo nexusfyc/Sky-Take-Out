@@ -10,6 +10,8 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 @Mapper
 public interface DishMapper {
 
@@ -30,4 +32,8 @@ public interface DishMapper {
     void insert(Dish dish);
 
     Page<DishVO> getDishPage(DishPageQueryDTO dishPageQueryDTO);
+
+    void deleteBatch(List<Long> ids);
+
+    List<Dish> getDishByIds(List<Long> ids);
 }
