@@ -1,8 +1,10 @@
 package com.sky.controller.admin;
 
 import com.sky.dto.DishDTO;
+import com.sky.dto.DishPageQueryDTO;
 import com.sky.entity.Dish;
 import com.sky.entity.DishFlavor;
+import com.sky.result.PageResult;
 import com.sky.result.Result;
 import com.sky.service.DishFlavorService;
 import com.sky.service.DishService;
@@ -11,10 +13,7 @@ import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -38,5 +37,12 @@ public class DishController {
     public Result<?> insert(@RequestBody DishDTO dishDTO) {
         dishService.insert(dishDTO);
         return Result.success();
+    }
+
+    @GetMapping("/page")
+    @ApiOperation("分页查询菜品")
+    public Result<PageResult> getDishPage(DishPageQueryDTO dishPageQueryDTO) {
+        PageResult pageResult = dishService.getDishPage(dishPageQueryDTO);
+        return Result.success(pageResult);
     }
 }
