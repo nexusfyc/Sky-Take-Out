@@ -1,0 +1,42 @@
+package com.sky.controller.admin;
+
+import com.sky.dto.DishDTO;
+import com.sky.entity.Dish;
+import com.sky.entity.DishFlavor;
+import com.sky.result.Result;
+import com.sky.service.DishFlavorService;
+import com.sky.service.DishService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@Slf4j
+@RequestMapping("/admin/dish")
+@Api(tags = "菜品相关接口")
+public class DishController {
+
+    @Autowired
+    private DishService dishService;
+
+
+    /**
+     * 新增菜品：插入dish、插入dish_flavor
+     * @param dishDTO
+     * @return
+     */
+    @PostMapping
+    @ApiOperation("新增菜品")
+    public Result<?> insert(@RequestBody DishDTO dishDTO) {
+        dishService.insert(dishDTO);
+        return Result.success();
+    }
+}
