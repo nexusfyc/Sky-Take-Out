@@ -120,11 +120,10 @@ public class SetmealServiceImpl implements SetmealService {
                 ids.add(setmealDish.getDishId());
             }
             List<Dish> dishByIds = dishMapper.getDishByIds(ids);
-            for (Dish dishById : dishByIds) {
-                //  包含停售菜品，抛出异常
-                if (dishById.getStatus() == 0) {
-                    throw new SetmealEnableFailedException(MessageConstant.SETMEAL_ENABLE_FAILED);
-                }
+            log.info("查看参数长度:{}, {}", dishByIds.size(), ids.size());
+            //  拿到的起售菜品数量（dishByIds长度）和传入的菜品id数量不匹配，说明有停售菜品，则不能起售
+            if (dishByIds.size() != ids.size()) {
+                throw new SetmealEnableFailedException(MessageConstant.SETMEAL_ENABLE_FAILED);
             }
         }
 
