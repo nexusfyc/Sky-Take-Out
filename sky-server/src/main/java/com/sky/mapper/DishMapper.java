@@ -40,6 +40,7 @@ public interface DishMapper {
     @Select("select dish.* from dish where dish.id = #{id}")
     Dish getDishDetail(Long id);
 
+    //  todo 将该方法改到DishFlavorMapper中
     @Select("select * from dish_flavor where dish_id = #{id}")
     List<DishFlavor> getDishDetailOnlyFlavors(Long id);
 
