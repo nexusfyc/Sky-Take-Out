@@ -1,25 +1,29 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSONObject;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
-import com.sky.dto.OrdersSubmitDTO;
-import com.sky.entity.AddressBook;
-import com.sky.entity.OrderDetail;
-import com.sky.entity.Orders;
-import com.sky.entity.ShoppingCart;
+import com.sky.dto.*;
+import com.sky.entity.*;
 import com.sky.exception.AddressBookBusinessException;
+import com.sky.exception.OrderBusinessException;
 import com.sky.exception.ShoppingCartBusinessException;
-import com.sky.mapper.AddressBookMapper;
-import com.sky.mapper.OrderDetailMapper;
-import com.sky.mapper.OrderMapper;
-import com.sky.mapper.ShoppingCartMapper;
+import com.sky.mapper.*;
+import com.sky.result.PageResult;
 import com.sky.service.OrderService;
+import com.sky.service.ShoppingCartService;
+import com.sky.utils.WeChatPayUtil;
+import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
+import com.sky.vo.OrderVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +39,23 @@ public class OrderServiceImpl implements OrderService {
     private ShoppingCartMapper shoppingCartMapper;
     @Autowired
     private OrderDetailMapper orderDetailMapper;
+    @Autowired
+    private UserMapper userMapper;
 
+    @Autowired
+    private ShoppingCartService shoppingCartService;
+
+    @Autowired
+    private WeChatPayUtil weChatPayUtil;
+
+    @Autowired
+    private Orders orders;
+
+    /**
+     * 提交订单（未支付）
+     * @param ordersSubmitDTO
+     * @return
+     */
     @Override
     @Transactional
     public OrderSubmitVO submitOrder(OrdersSubmitDTO ordersSubmitDTO) {
@@ -57,6 +77,7 @@ public class OrderServiceImpl implements OrderService {
         orders.setPhone(address.getPhone());
         orders.setAddress(address.getDetail());
         orders.setConsignee(address.getConsignee());
+        this.orders = orders;
         orderMapper.save(orders);
 
         //  向order_detail表中插入若干条购物车中的数据
@@ -86,5 +107,119 @@ public class OrderServiceImpl implements OrderService {
         shoppingCartMapper.deleteAll(BaseContext.getCurrentId());
         return orderSubmitVO;
 
+    }
+
+    /**
+     * 订单支付
+     *
+     * @param ordersPaymentDTO
+     * @return
+     */
+    public OrderPaymentVO payment(OrdersPaymentDTO ordersPaymentDTO) throws Exception {
+        // 当前登录用户id
+        Long userId = BaseContext.getCurrentId();
+        User user = userMapper.getById(userId);
+
+        //调用微信支付接口，生成预支付交易单
+//        JSONObject jsonObject = weChatPayUtil.pay(
+//                ordersPaymentDTO.getOrderNumber(), //商户订单号
+//                new BigDecimal(0.01), //支付金额，单位 元
+//                "苍穹外卖订单", //商品描述
+//                user.getOpenid() //微信用户的openid
+//        );
+//
+//        if (jsonObject.getString("code") != null && jsonObject.getString("code").equals("ORDERPAID")) {
+//            throw new OrderBusinessException("该订单已支付");
+//        }
+
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("code","ORDERPAID");
+        OrderPaymentVO vo = jsonObject.toJavaObject(OrderPaymentVO.class);
+        vo.setPackageStr(jsonObject.getString("package"));
+        Integer OrderPaidStatus = Orders.PAID;//支付状态，已支付
+        Integer OrderStatus = Orders.TO_BE_CONFIRMED;  //订单状态，待接单
+        LocalDateTime check_out_time = LocalDateTime.now();//更新支付时间
+        orderMapper.updateStatus(OrderStatus, OrderPaidStatus, check_out_time, this.orders.getId());
+
+        return vo;
+    }
+
+    /**
+     * 支付成功，修改订单状态
+     *
+     * @param outTradeNo
+     */
+    public void paySuccess(String outTradeNo) {
+
+        // 根据订单号查询订单
+        Orders ordersDB = orderMapper.getByNumber(outTradeNo);
+
+        // 根据订单id更新订单的状态、支付方式、支付状态、结账时间
+        Orders orders = Orders.builder()
+                .id(ordersDB.getId())
+                .status(Orders.TO_BE_CONFIRMED)
+                .payStatus(Orders.PAID)
+                .checkoutTime(LocalDateTime.now())
+                .build();
+
+        orderMapper.update(orders);
+    }
+
+    /**
+     * 获取历史订单
+     * @param ordersPageQueryDTO
+     * @return
+     */
+    @Override
+    public PageResult getHistoryOrders(OrdersPageQueryDTO ordersPageQueryDTO) {
+        PageHelper.startPage(ordersPageQueryDTO.getPage(), ordersPageQueryDTO.getPageSize());
+        Page<OrderVO> page = orderMapper.getHistoryOrders(ordersPageQueryDTO);
+
+        for (OrderVO orderVO : page.getResult()) {
+            List<OrderDetail> orderDetailList = orderMapper.getOrderDetailList(orderVO.getId());
+            orderVO.setOrderDetailList(orderDetailList);
+        }
+        return new PageResult(page.getTotal(), page.getResult());
+    }
+
+    /**
+     * 获取历史订单详情
+     * @param id
+     * @return
+     */
+    @Override
+    public OrderVO getOrderDetail(Long id) {
+        OrderVO orderDetail = orderMapper.getOrderDetail(id);
+        List<OrderDetail> orderDetailList = orderMapper.getOrderDetailList(orderDetail.getId());
+        orderDetail.setOrderDetailList(orderDetailList);
+        return orderDetail;
+    }
+
+    /**
+     * 取消订单
+     * @param id
+     */
+    @Override
+    public void cancelOrder(Long id) {
+        Orders order = Orders.builder()
+                .status(Orders.CANCELLED)
+                .id(id)
+                .build();
+        orderMapper.cancelOrder(order);
+    }
+
+    /**
+     * 再来一单
+     * @param id
+     */
+    @Override
+    public void oneMoreOrder(Long id) {
+        //  重新提交商品至购物车
+        List<OrderDetail> orderDetailList = orderDetailMapper.getDishOrSetmeal(id);
+        for (OrderDetail orderDetail : orderDetailList) {
+            ShoppingCartDTO shoppingCartDTO = new ShoppingCartDTO();
+            BeanUtils.copyProperties(orderDetail, shoppingCartDTO);
+            shoppingCartService.add(shoppingCartDTO);
+        }
     }
 }

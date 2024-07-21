@@ -1,5 +1,6 @@
 package com.sky.mapper;
 
+import com.sky.entity.OrderDetail;
 import com.sky.entity.ShoppingCart;
 import com.sky.entity.User;
 import org.apache.ibatis.annotations.Delete;
@@ -23,11 +24,12 @@ public interface ShoppingCartMapper {
 
     Integer countDishOrSetmeal(ShoppingCart shoppingCart);
 
-
     void updateDishOrSetmeal(ShoppingCart shoppingCart);
 
     @Delete("delete from shopping_cart where user_id = #{currentId}")
     void deleteAll(Long currentId);
 
     void deleteDishOrSetmeal(ShoppingCart shoppingCart);
+
+    void saveBatch(List<OrderDetail> orderDetailList);
 }
