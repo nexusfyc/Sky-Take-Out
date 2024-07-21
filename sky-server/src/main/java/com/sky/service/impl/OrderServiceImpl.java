@@ -16,6 +16,7 @@ import com.sky.service.OrderService;
 import com.sky.service.ShoppingCartService;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
+import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
 import org.springframework.beans.BeanUtils;
@@ -27,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -196,7 +198,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * 取消订单
+     * 取消订单（用户端）
      * @param id
      */
     @Override
@@ -206,6 +208,21 @@ public class OrderServiceImpl implements OrderService {
                 .id(id)
                 .build();
         orderMapper.cancelOrder(order);
+    }
+
+    /**
+     * 取消订单（管理端）
+     * @param ordersCancelDTO
+     */
+    @Override
+    public void cancelOrder(OrdersCancelDTO ordersCancelDTO) {
+        Orders order = Orders.builder()
+                .id(ordersCancelDTO.getId())
+                .status(Orders.CANCELLED)
+                .cancelReason(ordersCancelDTO.getCancelReason())
+                .cancelTime(LocalDateTime.now())
+                .build();
+        orderMapper.rejectOrder(order);
     }
 
     /**
@@ -221,5 +238,77 @@ public class OrderServiceImpl implements OrderService {
             BeanUtils.copyProperties(orderDetail, shoppingCartDTO);
             shoppingCartService.add(shoppingCartDTO);
         }
+    }
+
+    @Override
+    public PageResult getHistoryOrdersOnAdmin(OrdersPageQueryDTO ordersPageQueryDTO) {
+        Page<OrderVO> orders = orderMapper.searchOrders(ordersPageQueryDTO);
+        return new PageResult(orders.getTotal(), orders.getResult());
+    }
+
+    @Override
+    public OrderStatisticsVO statistics() {
+        Orders confirmed = Orders.builder().status(Orders.CONFIRMED).build();
+        Integer confirmedNum = orderMapper.countStatus(confirmed);
+        Orders deliveryInProgress = Orders.builder().status(Orders.DELIVERY_IN_PROGRESS).build();
+        Integer deliveryInProgressNum = orderMapper.countStatus(deliveryInProgress);
+        Orders toBeConfirmed = Orders.builder().status(Orders.TO_BE_CONFIRMED).build();
+        Integer toBeConfirmedNum = orderMapper.countStatus(toBeConfirmed);
+        OrderStatisticsVO orderStatisticsVO = new OrderStatisticsVO();
+        orderStatisticsVO.setConfirmed(confirmedNum);
+        orderStatisticsVO.setDeliveryInProgress(deliveryInProgressNum);
+        orderStatisticsVO.setToBeConfirmed(toBeConfirmedNum);
+        return orderStatisticsVO;
+    }
+
+    @Override
+    public void confirmOrder(OrdersConfirmDTO ordersConfirmDTO) {
+        ordersConfirmDTO.setStatus(Orders.CONFIRMED);
+        orderMapper.confirmOrder(ordersConfirmDTO);
+    }
+
+    @Override
+    public void rejectOrder(OrdersRejectionDTO ordersRejectionDTO) {
+        OrderVO orderDetail = orderMapper.getOrderDetail(ordersRejectionDTO.getId());
+        if (!Objects.equals(orderDetail.getStatus(), Orders.TO_BE_CONFIRMED)) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+
+//        //支付状态
+//        Integer payStatus = orderDetail.getPayStatus();
+//        if (payStatus == Orders.PAID) {
+//            //用户已支付，需要退款
+//            String refund = weChatPayUtil.refund(
+//                    orderDetail.getNumber(),
+//                    orderDetail.getNumber(),
+//                    new BigDecimal(0.01),
+//                    new BigDecimal(0.01));
+//        }
+
+        Orders order = Orders.builder()
+                .id(ordersRejectionDTO.getId())
+                .status(Orders.CANCELLED)
+                .rejectionReason(ordersRejectionDTO.getRejectionReason())
+                .cancelTime(LocalDateTime.now())
+                .build();
+        orderMapper.rejectOrder(order);
+    }
+
+    @Override
+    public void deliveryOrder(Long id) {
+        OrderVO orderVO = orderMapper.getOrderDetail(id);
+        if (orderVO == null || !orderVO.getStatus().equals(Orders.CONFIRMED)) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+        orderMapper.deliveryOrder(id);
+    }
+
+    @Override
+    public void completeOrder(Long id) {
+        OrderVO orderVO = orderMapper.getOrderDetail(id);
+        if (orderVO == null || !orderVO.getStatus().equals(Orders.DELIVERY_IN_PROGRESS)) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+        orderMapper.finishOrder(id);
     }
 }

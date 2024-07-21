@@ -1,10 +1,13 @@
 package com.sky.mapper;
 
 import com.github.pagehelper.Page;
+import com.sky.dto.OrdersConfirmDTO;
 import com.sky.dto.OrdersPageQueryDTO;
+import com.sky.dto.OrdersRejectionDTO;
 import com.sky.entity.OrderDetail;
 import com.sky.entity.Orders;
 import com.sky.entity.User;
+import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderVO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -49,4 +52,21 @@ public interface OrderMapper {
 
     @Update("update orders set status = #{status} where id = #{id}")
     void cancelOrder(Orders order);
+
+    Page<OrderVO> searchOrders(OrdersPageQueryDTO ordersPageQueryDTO);
+
+    @Select("select count(*) from orders where status = #{status}")
+    Integer countStatus(Orders order);
+
+    @Update("update orders set status = #{status} where id = #{id}")
+    void confirmOrder(OrdersConfirmDTO ordersConfirmDTO);
+
+
+    void rejectOrder(Orders order);
+
+    @Update("update orders set status = 4 where id = #{id}")
+    void deliveryOrder(Long id);
+
+    @Update("update orders set status = 5 where id = #{id}")
+    void finishOrder(Long id);
 }
