@@ -10,11 +10,14 @@ import com.sky.service.ShopService;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
+import com.sky.websocket.WebSocketServer;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
 
 @RestController("userOrderController")
 @Api(tags = "用户订单相关接口")
@@ -24,6 +27,7 @@ public class OrderController {
 
     @Autowired
     private OrderService orderService;
+
 
     @PostMapping("/submit")
     @ApiOperation("订单提交")
@@ -69,8 +73,16 @@ public class OrderController {
     }
 
     @PostMapping("/repetition/{id}")
+    @ApiOperation("再来一单")
     public Result<?> oneMoreOrder(@PathVariable Long id) {
         orderService.oneMoreOrder(id);
+        return Result.success();
+    }
+
+    @GetMapping("/reminder/{id}")
+    @ApiOperation("催单")
+    public Result<?> remindAdmin(@PathVariable Long id) {
+        orderService.remindAdmin(id);
         return Result.success();
     }
 

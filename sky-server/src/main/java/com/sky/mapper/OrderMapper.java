@@ -50,7 +50,6 @@ public interface OrderMapper {
     @Select("select * from order_detail where order_id = #{id}")
     List<OrderDetail> getOrderDetailList(Long id);
 
-    @Update("update orders set status = #{status} where id = #{id}")
     void cancelOrder(Orders order);
 
     Page<OrderVO> searchOrders(OrdersPageQueryDTO ordersPageQueryDTO);
@@ -69,4 +68,8 @@ public interface OrderMapper {
 
     @Update("update orders set status = 5 where id = #{id}")
     void finishOrder(Long id);
+
+    @Select("select * from orders where status = #{pendingPayment} and order_time < #{fifteenMinutesAgo}")
+    List<Orders> getByStatusAndOrdertimeLT(Integer pendingPayment, LocalDateTime fifteenMinutesAgo);
+
 }
