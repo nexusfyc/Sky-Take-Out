@@ -1,6 +1,7 @@
 package com.sky.mapper;
 
 import com.github.pagehelper.Page;
+import com.sky.dto.GoodsSalesDTO;
 import com.sky.dto.OrdersConfirmDTO;
 import com.sky.dto.OrdersPageQueryDTO;
 import com.sky.dto.OrdersRejectionDTO;
@@ -16,6 +17,7 @@ import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface OrderMapper {
@@ -72,4 +74,14 @@ public interface OrderMapper {
     @Select("select * from orders where status = #{pendingPayment} and order_time < #{fifteenMinutesAgo}")
     List<Orders> getByStatusAndOrdertimeLT(Integer pendingPayment, LocalDateTime fifteenMinutesAgo);
 
+
+    Double sumByMap(Map map);
+
+    Integer countByMap(Map map);
+
+    @Select("select sum(amount) sa, name\n" +
+            "from (select o.id, o.status, od.amount, od.name from orders o LEFT JOIN order_detail od " +
+            "on o.id = od.order_id where o.status = 5 and o.order_time BETWEEN #{beginTime} and #{endTime}) as tb\n" +
+            "        GROUP BY name order by sa desc limit 10")
+    List<GoodsSalesDTO> getSalesTop10(LocalDateTime beginTime, LocalDateTime endTime);
 }
