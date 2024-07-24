@@ -6,16 +6,22 @@ import com.sky.mapper.OrderMapper;
 import com.sky.mapper.UserMapper;
 import com.sky.service.ReportService;
 import com.sky.service.ShopService;
-import com.sky.vo.OrderReportVO;
-import com.sky.vo.SalesTop10ReportVO;
-import com.sky.vo.TurnoverReportVO;
-import com.sky.vo.UserReportVO;
+import com.sky.service.WorkspaceService;
+import com.sky.vo.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -32,6 +38,8 @@ public class ReportServiceImpl implements ReportService {
     private OrderMapper orderMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private WorkspaceService workspaceService;
 
     @Override
     public TurnoverReportVO getTurnover(LocalDate begin, LocalDate end) {
@@ -155,6 +163,54 @@ public class ReportServiceImpl implements ReportService {
                 .nameList(nameList)
                 .numberList(numberList)
                 .build();
+    }
+
+    /**
+     * 导出报表
+     * @param httpServletResponse
+     */
+    public void export(HttpServletResponse httpServletResponse) throws IOException {
+        //  1.查询数据库获取相应数据
+        LocalDate beginDay = LocalDate.now().minusDays(31);
+        LocalDate endDay = LocalDate.now().minusDays(1);
+        BusinessDataVO businessData = workspaceService.getBusinessData(LocalDateTime.of(beginDay, LocalTime.MIN), LocalDateTime.of(endDay, LocalTime.MAX));
+
+        //  2.调用模版并写入
+        FileInputStream fileInputStream = new FileInputStream(new File("/Users/fanyc/myprojects/sky-take-out/sky-server/src/main/resources/template/target.xlsx"));
+        XSSFWorkbook sheets = new XSSFWorkbook(fileInputStream);
+        sheets.getSheet("Sheet1").getRow(1).getCell(1).setCellValue("时间范围：" + beginDay + " - " + endDay);
+        //获得第4行
+        XSSFRow row = sheets.getSheet("Sheet1").getRow(3);
+        //获取单元格
+        row.getCell(2).setCellValue(businessData.getTurnover());
+        row.getCell(4).setCellValue(businessData.getOrderCompletionRate());
+        row.getCell(6).setCellValue(businessData.getNewUsers());
+        //获得第5行
+        row = sheets.getSheet("Sheet1").getRow(4);
+        //获取单元格
+        row.getCell(2).setCellValue(businessData.getValidOrderCount());
+        row.getCell(4).setCellValue(businessData.getUnitPrice());
+
+        for (int i = 0; i < 30; i++) {
+            LocalDate date = beginDay.plusDays(i);
+            //准备明细数据
+            businessData = workspaceService.getBusinessData(LocalDateTime.of(date,LocalTime.MIN), LocalDateTime.of(date, LocalTime.MAX));
+            row = sheets.getSheet("Sheet1").getRow(7 + i);
+            row.getCell(1).setCellValue(date.toString());
+            row.getCell(2).setCellValue(businessData.getTurnover());
+            row.getCell(3).setCellValue(businessData.getValidOrderCount());
+            row.getCell(4).setCellValue(businessData.getOrderCompletionRate());
+            row.getCell(5).setCellValue(businessData.getUnitPrice());
+            row.getCell(6).setCellValue(businessData.getNewUsers());
+        }
+        //  3.通过response对象返回
+        ServletOutputStream outputStream = httpServletResponse.getOutputStream();
+        sheets.write(outputStream);
+
+        //  4.关闭流
+        sheets.close();
+        fileInputStream.close();
+        outputStream.close();
     }
 
 
